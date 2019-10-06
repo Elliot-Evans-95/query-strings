@@ -43,6 +43,46 @@ class QueryString {
         return currentString;
     }
 
+    static Decode(string: string) {
+        // if string has '?' remove it
+        string = string.replace('?','');
+
+        const queryString = string.split('&');
+
+        interface LooseObject {
+            [key: string]: any
+        }
+
+        const decodedQuery: LooseObject = {};
+        queryString.forEach( query => {
+            const numberOfFields = (query.match(/=/g)||[]).length;
+
+            if(numberOfFields === 1) {
+                const fieldAndData = query.split('=');
+                if((fieldAndData[1] as unknown) == parseInt(fieldAndData[1])) (fieldAndData[1] as unknown) = parseInt(fieldAndData[1]);
+                if(fieldAndData[1] == 'true') (fieldAndData[1] as unknown) = true;
+                if(fieldAndData[1] == 'false') (fieldAndData[1] as unknown) = false;
+                decodedQuery[fieldAndData[0]] = fieldAndData[1];
+            }
+
+            // NOTE: Cannot tell if it should be object or array, so its array for all
+            if(numberOfFields > 1) {
+                const fieldAndData = query.split('=');
+                const test = fieldAndData.map(x => {
+                    if(x.includes(fieldAndData[0])) x = x.replace(fieldAndData[0], '');
+                    if(x === '' || x === null || x === undefined) return;
+                    if((x as unknown) == parseInt(x)) (x as unknown) = parseInt(x);
+
+                    return x;
+                });
+                test.splice(0, 1);
+                decodedQuery[fieldAndData[0]] = test;
+            }
+        });
+
+        return decodedQuery;
+    }
+
     static Output(currentString: string, prefix: boolean) {
         if (prefix) return '?' + currentString;
         return currentString;
@@ -52,5 +92,7 @@ class QueryString {
 console.log( QueryString.Encode({ foo: 'hello', bar: [1,2,3], baz: true, buzz: { one: 1 } }) );
 // => ?foo=hello&bar=1bar=2bar=3&baz=true&one=1
 
-// TODO: Decode
+console.log( QueryString.Decode('?foo=hello&bar=1bar=2bar=3&baz=true&one=1') );
+// => { foo: 'hello', bar: [ 1, 2, 3 ], baz: true, one: 1 }
+
 // TODO: Support BigInt, Symbol and Function
